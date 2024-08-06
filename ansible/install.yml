@@ -1,0 +1,234 @@
+---
+- name: Rocky Linux 9.3 Ansible Playbook
+  hosts: localhost
+  connection: local
+  vars:
+    php_version: 8.2.7
+    nginx_version: 1.22.0
+    php_url: "https://www.php.net/distributions/php-{{ php_version }}.tar.gz"
+    nginx_url: "http://nginx.org/download/nginx-{{ nginx_version }}.tar.gz"
+    composer_url: "https://getcomposer.org/installer"
+    composer_path: "/usr/local/bin/composer"
+
+  tasks:
+    - name: Uninstall curl-minimal
+      dnf:
+        name: curl-minimal
+        state: absent
+
+    - name: Install necessary packages
+      dnf:
+        name:
+          - emacs
+          - w3m
+          - openssl-devel
+          - curl-devel
+          - zlib-devel
+          - libxml2-devel
+          - gmp-devel
+          - sqlite-devel
+          - pcre-devel
+          - gcc
+          - make
+          - perl
+          - php-cli
+          - php-zip
+          - wget
+          - unzip
+        state: present
+
+    - block:
+        - name: Download PHP source
+          get_url:
+            url: "{{ php_url }}"
+            dest: /usr/local/src/php-{{ php_version }}.tar.gz
+
+        - name: Extract PHP source
+          unarchive:
+            src: /usr/local/src/php-{{ php_version }}.tar.gz
+            dest: /usr/local/src/
+            remote_src: yes
+
+        - name: Install PHP from source
+          shell: |
+            cd /usr/local/src/php-{{ php_version }}
+            ./configure --enable-fpm --with-openssl --with-curl --with-zlib --with-libxml --with-gmp
+            make
+            make install
+      when: php_version is defined
+
+    - block:
+        - name: Download nginx source
+          get_url:
+            url: "{{ nginx_url }}"
+            dest: /usr/local/src/nginx-{{ nginx_version }}.tar.gz
+
+        - name: Extract nginx source
+          unarchive:
+            src: /usr/local/src/nginx-{{ nginx_version }}.tar.gz
+            dest: /usr/local/src/
+            remote_src: yes
+
+        - name: Install nginx from source with SSL module
+          shell: |
+            cd /usr/local/src/nginx-{{ nginx_version }}
+            ./configure --with-http_ssl_module
+            make
+            make install
+      when: nginx_version is defined
+
+    - block:
+        - name: Create self-signed SSL certificate for nginx
+          shell: |
+            openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 \
+            -subj "/CN=localhost" \
+            -keyout /usr/local/nginx/conf/server.key \
+            -out /usr/local/nginx/conf/server.crt
+
+        - name: Configure nginx for HTTPS and PHP
+          copy:
+            content: |
+              events {
+                  worker_connections 1024;
+              }
+
+              http {
+                  server {
+                      listen       80;
+                      server_name  localhost;
+              #        return 301 https://$host$request_uri;
+
+                      location / {
+                          root   html;
+                          index  index.php index.html index.htm;
+                      }
+
+                      location ~ \.php$ {
+                          root           html;
+                          fastcgi_pass   127.0.0.1:9000;
+                          fastcgi_index  index.php;
+                          fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+                          include        fastcgi_params;
+                      }
+                  }
+
+                  server {
+                      listen       443 ssl;
+                      server_name  localhost;
+
+                      ssl_certificate      /usr/local/nginx/conf/server.crt;
+                      ssl_certificate_key  /usr/local/nginx/conf/server.key;
+
+                      location / {
+                          root   html;
+                          index  index.php index.html index.htm;
+                      }
+
+                      location ~ \.php$ {
+                          root           html;
+                          fastcgi_pass   127.0.0.1:9000;
+                          fastcgi_index  index.php;
+                          fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+                          include        fastcgi_params;
+                      }
+                  }
+              }
+            dest: /usr/local/nginx/conf/nginx.conf
+
+        - name: Create directory for PHP-FPM logs
+          file:
+            path: /var/log/php-fpm
+            state: directory
+            owner: nobody
+            group: nobody
+            mode: '0755'
+
+        - name: Configure PHP-FPM
+          copy:
+            content: |
+              [global]
+              pid = /run/php-fpm.pid
+              error_log = /var/log/php-fpm/error.log
+
+              [www]
+              listen = 127.0.0.1:9000
+              listen.owner = nobody
+              listen.group = nobody
+              user = nobody
+              group = nobody
+              pm = dynamic
+              pm.max_children = 5
+              pm.start_servers = 2
+              pm.min_spare_servers = 1
+              pm.max_spare_servers = 3
+              chdir = /
+            dest: /usr/local/etc/php-fpm.conf
+
+        - name: Create systemd service for nginx
+          copy:
+            content: |
+              [Unit]
+              Description=The nginx HTTP and reverse proxy server
+              After=network.target remote-fs.target nss-lookup.target
+
+              [Service]
+              Type=forking
+              PIDFile=/usr/local/nginx/logs/nginx.pid
+              ExecStartPre=/usr/local/nginx/sbin/nginx -t
+              ExecStart=/usr/local/nginx/sbin/nginx
+              ExecReload=/bin/kill -s HUP $MAINPID
+              ExecStop=/bin/kill -s QUIT $MAINPID
+              PrivateTmp=true
+              User=nobody
+              Group=nobody
+
+              [Install]
+              WantedBy=multi-user.target
+            dest: /etc/systemd/system/nginx.service
+
+        - name: Create systemd service for php-fpm
+          copy:
+            content: |
+              [Unit]
+              Description=The PHP FastCGI Process Manager
+              After=network.target
+
+              [Service]
+              Type=simple
+              PIDFile = /var/run/php-fpm/php-fpm.pid
+              PIDFile=/usr/local/nginx/logs/nginx.pid
+              ExecStart=/usr/local/sbin/php-fpm --nodaemonize --fpm-config /usr/local/etc/php-fpm.conf
+              ExecReload=/bin/kill -USR2 $MAINPID
+              User=nobody
+              Group=nobody
+
+              [Install]
+              WantedBy=multi-user.target
+            dest: /etc/systemd/system/php-fpm.service
+
+        - name: Reload systemd daemon
+          systemd:
+            daemon_reload: yes
+
+        - name: Enable and start nginx and php-fpm
+          systemd:
+            name: "{{ item }}"
+            enabled: yes
+            state: started
+          with_items:
+            - nginx
+            - php-fpm
+      when: nginx_version is defined and php_version is defined
+
+    - block:
+        - name: Download Composer installer
+          get_url:
+            url: "{{ composer_url }}"
+            dest: /usr/local/src/composer-installer.php
+
+        - name: Install Composer
+          shell: |
+            php /usr/local/src/composer-installer.php --install-dir=/usr/local/bin --filename=composer
+
+        - name: Verify Composer installation
+          command: composer --version
