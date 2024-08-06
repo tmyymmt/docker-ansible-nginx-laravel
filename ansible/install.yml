@@ -96,7 +96,7 @@
                   server {
                       listen       80;
                       server_name  localhost;
-              #        return 301 https://$host$request_uri;
+                      return 301 https://$host:8443$request_uri;
 
                       location / {
                           root   html;
@@ -107,7 +107,7 @@
                           root           html;
                           fastcgi_pass   127.0.0.1:9000;
                           fastcgi_index  index.php;
-                          fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+                          fastcgi_param  SCRIPT_FILENAME /usr/local/nginx/html/$fastcgi_script_name;
                           include        fastcgi_params;
                       }
                   }
@@ -128,7 +128,7 @@
                           root           html;
                           fastcgi_pass   127.0.0.1:9000;
                           fastcgi_index  index.php;
-                          fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+                          fastcgi_param  SCRIPT_FILENAME /usr/local/nginx/html/$fastcgi_script_name;
                           include        fastcgi_params;
                       }
                   }

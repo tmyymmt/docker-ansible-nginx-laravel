@@ -39,6 +39,9 @@ URLは、バージョンの変数を使用し、上部にまとめて変数定�
 　　・httpアクセスはhttpsにリダイレクト
 　・php-fpmを設定して、phpを実行できるように設定
 
+/usr/local/nginx/html/test.php として、下記の内容のファイルを作成する。
+<?php phpinfo(); ?>
+
 nginxはsystemdで管理するように設定する。
 
 ----------------------------------
