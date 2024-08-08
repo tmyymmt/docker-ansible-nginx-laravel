@@ -1,18 +1,22 @@
-# DockerとAnsibleのサンプル1
+# DockerとAnsibleのサンプル (nginx, MySQL, Laravel, Next.js)
 
-DockerとAnsibleで構築した環境に、Spring Bootアプリケーションをデプロイするサンプルです。
+DockerとAnsibleで構築した環境に、LaravelとNext.jsアプリケーションをデプロイするサンプルです。
+
+サーバ1台に全て入れます。
 
 脆弱性を含むバージョンで構築します。
 
 ## 構成
 
-| 構成物              |  バージョン  |                       脆弱性                       | 備考                |
-|:-----------------|:-------:|:-----------------------------------------------:|:------------------| 
-| Apache           | 2.4.60  | https://www.cve.org/CVERecord?id=CVE-2024-39884 |                   |
-| Tomcat           | 10.1.15 | https://www.cve.org/CVERecord?id=CVE-2023-46589 |                   |
-| Oracle Jave SE   | 21.0.1  | https://www.cve.org/CVERecord?id=CVE-2024-20918 |                   |
-| Spring Boot      |  3.0.4  | https://www.cve.org/CVERecord?id=CVE-2023-20873 |                   |
-| Spring Framework |  6.0.6  |                                                 | Speing Boot 3.0.4 |
+| 構成物      | バージョン  |             脆弱性                                 | 備考 |
+|:---------|:------:|:-----------------------------------------------:|:---| 
+| nginx    | 1.22.0 | https://www.cve.org/CVERecord?id=CVE-2022-41741 |    |
+| PHP      | 8.2.7  | https://www.cve.org/CVERecord?id=CVE-2023-3823  |    |
+| Composer | latest |                                                 |    |
+| Laravel  |  8.x   | https://www.cve.org/CVERecord?id=CVE-2022-40482 |    |
+| Node.js  | 18.x.x |                                                 |    |
+| npm      | 10.x.x |                                                 |    |
+| Next.js  | 12.0.8 | https://www.cve.org/CVERecord?id=CVE-2022-21721 |    |
 
 # 使用方法
 
@@ -26,7 +30,7 @@ DockerとAnsibleで構築した環境に、Spring Bootアプリケーション�
 2. webコンテナ内で以下のコマンドを実行する。
 
     ```shell
-    cd /opt/ansible-maven
+    cd /opt/ansible
     ansible-playbook install.yml
     ansible-playbook deploy.yml
     ```

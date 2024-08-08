@@ -1,5 +1,5 @@
 ---
-- name: Rocky Linux 9.3 Ansible Playbook
+- name: Install Nginx, PHP, Node.js, and MySQL on Rocky Linux 9.3
   hosts: localhost
   connection: local
   vars:
@@ -11,10 +11,22 @@
     composer_path: "/usr/local/bin/composer"
 
   tasks:
+    - name: Enable CRB repository
+      dnf:
+        name: dnf-plugins-core
+        state: present
+
+    - name: Enable CRB repository
+      command: dnf config-manager --set-enabled crb
+
     - name: Uninstall curl-minimal
       dnf:
         name: curl-minimal
         state: absent
+
+    - name: Add node 18.x to repository
+      shell: |
+        curl -sL https://rpm.nodesource.com/setup_18.x | bash -
 
     - name: Install necessary packages
       dnf:
@@ -33,8 +45,13 @@
           - perl
           - php-cli
           - php-zip
+          - php-mysqlnd
+          - oniguruma-devel
+          - php-mbstring
           - wget
           - unzip
+          - mysql
+          - nodejs
         state: present
 
     - block:
@@ -52,10 +69,10 @@
         - name: Install PHP from source
           shell: |
             cd /usr/local/src/php-{{ php_version }}
-            ./configure --enable-fpm --with-openssl --with-curl --with-zlib --with-libxml --with-gmp
+            ./configure --enable-fpm --enable-mbstring --with-openssl --with-curl --with-zlib --with-libxml --with-gmp --with-pdo-mysql
             make
             make install
-      when: php_version is defined
+          when: php_version is defined
 
     - block:
         - name: Download nginx source
@@ -75,63 +92,48 @@
             ./configure --with-http_ssl_module
             make
             make install
-      when: nginx_version is defined
+          when: nginx_version is defined
 
     - block:
         - name: Create self-signed SSL certificate for nginx
           shell: |
             openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 \
-            -subj "/CN=localhost" \
-            -keyout /usr/local/nginx/conf/server.key \
-            -out /usr/local/nginx/conf/server.crt
+              -subj "/CN=localhost" \
+              -keyout /usr/local/nginx/conf/server.key \
+              -out /usr/local/nginx/conf/server.crt
 
         - name: Configure nginx for HTTPS and PHP
           copy:
             content: |
               events {
-                  worker_connections 1024;
+                worker_connections 1024;
               }
-
+              
               http {
-                  server {
-                      listen       80;
-                      server_name  localhost;
-                      return 301 https://$host:8443$request_uri;
-
-                      location / {
-                          root   html;
-                          index  index.php index.html index.htm;
-                      }
-
-                      location ~ \.php$ {
-                          root           html;
-                          fastcgi_pass   127.0.0.1:9000;
-                          fastcgi_index  index.php;
-                          fastcgi_param  SCRIPT_FILENAME /usr/local/nginx/html/$fastcgi_script_name;
-                          include        fastcgi_params;
-                      }
+                server {
+                  listen 80;
+                  server_name localhost;
+                }
+              
+                server {
+                  listen 443 ssl;
+                  server_name localhost;
+                  ssl_certificate /usr/local/nginx/conf/server.crt;
+                  ssl_certificate_key /usr/local/nginx/conf/server.key;
+              
+                  location / {
+                    root html;
+                    index index.php index.html index.htm;
                   }
-
-                  server {
-                      listen       443 ssl;
-                      server_name  localhost;
-
-                      ssl_certificate      /usr/local/nginx/conf/server.crt;
-                      ssl_certificate_key  /usr/local/nginx/conf/server.key;
-
-                      location / {
-                          root   html;
-                          index  index.php index.html index.htm;
-                      }
-
-                      location ~ \.php$ {
-                          root           html;
-                          fastcgi_pass   127.0.0.1:9000;
-                          fastcgi_index  index.php;
-                          fastcgi_param  SCRIPT_FILENAME /usr/local/nginx/html/$fastcgi_script_name;
-                          include        fastcgi_params;
-                      }
+              
+                  location ~ \.php$ {
+                    root html;
+                    fastcgi_pass 127.0.0.1:9000;
+                    fastcgi_index index.php;
+                    fastcgi_param SCRIPT_FILENAME /usr/local/nginx/html/$fastcgi_script_name;
+                    include fastcgi_params;
                   }
+                }
               }
             dest: /usr/local/nginx/conf/nginx.conf
 
@@ -149,7 +151,6 @@
               [global]
               pid = /run/php-fpm.pid
               error_log = /var/log/php-fpm/error.log
-
               [www]
               listen = 127.0.0.1:9000
               listen.owner = nobody
@@ -164,60 +165,57 @@
               chdir = /
             dest: /usr/local/etc/php-fpm.conf
 
-        - name: Create systemd service for nginx
-          copy:
-            content: |
-              [Unit]
-              Description=The nginx HTTP and reverse proxy server
-              After=network.target remote-fs.target nss-lookup.target
+    - name: Create systemd service for nginx
+      copy:
+        content: |
+          [Unit]
+          Description=The nginx HTTP and reverse proxy server
+          After=network.target remote-fs.target nss-lookup.target
 
-              [Service]
-              Type=forking
-              PIDFile=/usr/local/nginx/logs/nginx.pid
-              ExecStartPre=/usr/local/nginx/sbin/nginx -t
-              ExecStart=/usr/local/nginx/sbin/nginx
-              ExecReload=/bin/kill -s HUP $MAINPID
-              ExecStop=/bin/kill -s QUIT $MAINPID
-              PrivateTmp=true
-              User=nobody
-              Group=nobody
+          [Service]
+          Type=forking
+          PIDFile=/usr/local/nginx/logs/nginx.pid
+          ExecStartPre=/usr/local/nginx/sbin/nginx -t
+          ExecStart=/usr/local/nginx/sbin/nginx
+          ExecReload=/bin/kill -s HUP $MAINPID
+          ExecStop=/bin/kill -s QUIT $MAINPID
+          PrivateTmp=true
+          User=root
+          Group=root
 
-              [Install]
-              WantedBy=multi-user.target
-            dest: /etc/systemd/system/nginx.service
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/nginx.service
 
-        - name: Create systemd service for php-fpm
-          copy:
-            content: |
-              [Unit]
-              Description=The PHP FastCGI Process Manager
-              After=network.target
+    - name: Create systemd service for php-fpm
+      copy:
+        content: |
+          [Unit]
+          Description=The PHP FastCGI Process Manager
+          After=network.target
+          [Service]
+          Type=simple
+          PIDFile=/var/run/php-fpm.pid
+          ExecStart=/usr/local/sbin/php-fpm --nodaemonize --fpm-config /usr/local/etc/php-fpm.conf
+          ExecReload=/bin/kill -USR2 $MAINPID
+          User=root
+          Group=root
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/php-fpm.service
 
-              [Service]
-              Type=simple
-              PIDFile = /var/run/php-fpm/php-fpm.pid
-              PIDFile=/usr/local/nginx/logs/nginx.pid
-              ExecStart=/usr/local/sbin/php-fpm --nodaemonize --fpm-config /usr/local/etc/php-fpm.conf
-              ExecReload=/bin/kill -USR2 $MAINPID
-              User=nobody
-              Group=nobody
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
 
-              [Install]
-              WantedBy=multi-user.target
-            dest: /etc/systemd/system/php-fpm.service
-
-        - name: Reload systemd daemon
-          systemd:
-            daemon_reload: yes
-
-        - name: Enable and start nginx and php-fpm
-          systemd:
-            name: "{{ item }}"
-            enabled: yes
-            state: started
-          with_items:
-            - nginx
-            - php-fpm
+    - name: Enable and start nginx and php-fpm
+      systemd:
+        name: "{{ item }}"
+        enabled: yes
+        state: started
+      with_items:
+        - nginx
+        - php-fpm
       when: nginx_version is defined and php_version is defined
 
     - block:
@@ -232,3 +230,21 @@
 
         - name: Verify Composer installation
           command: composer --version
+
+        - name: Add Composer to system PATH
+          lineinfile:
+            path: /etc/profile.d/composer.sh
+            line: 'export PATH="$PATH:/usr/local/bin/composer"'
+            create: yes
+
+    - block:
+        - name: Ensure MySQL is installed
+          dnf:
+            name: mysql-server
+            state: present
+
+        - name: Enable and start MySQL
+          systemd:
+            name: mysqld
+            enabled: yes
+            state: started

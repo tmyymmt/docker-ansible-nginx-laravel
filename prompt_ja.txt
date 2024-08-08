@@ -1,21 +1,21 @@
-----------------------------------
-Rocky Linux 9.3で使用する、Ansibleのplaybookファイルを作成。
+--・install.yml ---
+Rocky Linux 9.3 で使用する、AnsibleのPlaybookファイルを作成。
 
 Ansibleはローカルで実行する。
-connection: localを指定する。
-適宜 block: を使用して、タスクをグループ化する。
+connection: local と指定し、タスクをグループ化する。
+適宜 block を使用して、タスクをグループ化する。
 
 下記をdnfでアンインストールする。
 ・curl-minimal
 
 下記をインストールして、設定する。
-バージョン未指定のものは、適切なタスクでまとめてdnfでインストールする。
-ソースコードをダウンロードするものは/usr/local/srcにダウンロードし、/usr/localにインストールすること。
-バージョンは上記にまとめて変数定義にすること。
-URLは、バージョンの変数を使用し、上部にまとめて変数定義すること。
-シェルの実行スクリプトは行を変えて記述すること。
+ソースからインストールするのは、適切な方法でソースをdnfでインストールする。
+ソースコードをダウンロードする方法もある(/usr/local/srcにダウンロードし、/usr/localにインストールすること。
+パーミッションは適宜変更する必要はある。)
+URL/バージョンの指定が必要な場合は指定して構わないこと。
+次の最小限のライブラリが不足していないことを確認すること。
+
 ・emacs
-・w3m
 ・gcc
 ・make
 ・openssl-devel
@@ -25,32 +25,64 @@ URLは、バージョンの変数を使用し、上部にまとめて変数定�
 ・gmp-devel
 ・sqlite-devel
 ・pcre-devel
+・perl
+・php-cli
+・php-zip
+・php-mysqlnd
+・php-mbstring
+・wget
+・unzip
+・mysql
+・mysql-server
+・node.js
 ・php 8.2.7
-　・ソースからビルド
-　　・configureオプションに --enable-fpm --with-openssl --with-curl --with-zlib --with-libxml --with-gmp を付けて
-・composer
+ソースからビルドする場合、適切なオプションをつけてソースをビルドすること。
+・configureオプションに --enable-fpm --enable-mbstring --with-openssl --with-curl --with-zlib --with-libxml --with-gmp --with-pdo-mysql を付けて
+composer
 ・nginx 1.22.0
-　・ソースからビルド
-　　・configureオプションに --with-http_ssl_module --with-http_v2_module を付けて
-　・サーバ名はlocalhost
-　・httpsについて
-　　・SSL/TLSでアクセスできるようにキー生成して設定
-　・httpについて
-　　・httpアクセスはhttpsにリダイレクト
-　・php-fpmを設定して、phpを実行できるように設定
+・ソースからビルド
+・configureオプションに --with-http_ssl_module --with-http_v2_module を付けて
+・バーチャルホストの設定
+・SSL/TLSにアクセスできるようにホストを設定して
+・ポートにtcpで
+・httpアクセスはhttpsにリダイレクト
+・php-fpmを有効にするように設定すること。
 
-/usr/local/nginx/html/test.php として、下記の内容のファイルを作成する。
+Composerをインストールする。
+
+/usr/local/nginx/html/test.php に以下の内容のファイルを作成する。
 <?php phpinfo(); ?>
 
-nginxはsystemdで管理するように設定する。
+nginxとMySQLはsystemdで管理するように設定する。
 
-----------------------------------
-Rocky Linux 9.3で使用する、Ansibleのplaybookファイルを作成。
+--- deploy.yml ---
+Rocky Linux 9.3 で使用する、AnsibleのPlaybookファイルを作成。
 
 Ansibleはローカルで実行する。
-connection: localを指定する。
-適宜 block: を使用して、タスクをグループ化する。
+connection: local と指定する。
+適宜 block を使用して、タスクをグループ化する。
 
-php 8.2.7、nginx 1.22.0はインストール済みの前提。
+下記を実行する。
+・php 8.2.7 を /usr/local/php にインストール済み
+・nginx 1.22.0 を /usr/local/nginx にインストール済み
+・mysql、composerがインストール済み
+・php-fpmをインストール済み、127.0.0.1:9000 で動作している
 
-LaravelとNext.jsを使用してプロジェクトを作成する。
+Laravel 8.x と Next.js 12.0.8 を使用してサンプルプロジェクトを作成し、設定、起動させる。
+・/opt/project にディレクトリを作成する
+・cmysqlでデータベースを作成する
+・/api にLaravelを設置する
+・/api/next にNext.jsを設置する
+・Laravel:
+  ・サンプルプロジェクトを /opt/project/laravel-sample に作成する
+  ・composer create-project --prefer-dist laravel/laravel
+  ・/api/hello で Hello World を表示
+  ・nginx.conf で php-fpmを有効にする
+  ・nginx.conf で root を変更する
+・Next.js:
+  ・サンプルプロジェクトを /opt/project/nextjs-sample に作成する
+  ・/api/hello で Hello World を表示
+  ・nginx.conf で適宜設定を行う
+・nginxの設定:
+  ・ssl_certificate      /usr/local/nginx/conf/server.crt;
+  ・ssl_certificate_key  /usr/local/nginx/conf/server.key;
