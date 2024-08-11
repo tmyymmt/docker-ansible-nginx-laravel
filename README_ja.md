@@ -8,15 +8,15 @@ DockerとAnsibleで構築した環境に、LaravelとNext.jsアプリケーシ�
 
 ## 構成
 
-| 構成物      | バージョン  |             脆弱性                                 | 備考 |
-|:---------|:------:|:-----------------------------------------------:|:---| 
-| nginx    | 1.22.0 | https://www.cve.org/CVERecord?id=CVE-2022-41741 |    |
-| PHP      | 8.2.7  | https://www.cve.org/CVERecord?id=CVE-2023-3823  |    |
-| Composer | latest |                                                 |    |
-| Laravel  |  8.x   | https://www.cve.org/CVERecord?id=CVE-2022-40482 |    |
-| Node.js  | 18.x.x |                                                 |    |
-| npm      | 10.x.x |                                                 |    |
-| Next.js  | 12.0.8 | https://www.cve.org/CVERecord?id=CVE-2022-21721 |    |
+| 構成物      | バージョン  |                                脆弱性                                | 備考 |
+|:---------|:------:|:-----------------------------------------------------------------:|:---| 
+| nginx    | 1.22.0 | [CVE-2022-41741](https://www.cve.org/CVERecord?id=CVE-2022-41741) |    |
+| PHP      | 8.2.7  |  [CVE-2023-3823](https://www.cve.org/CVERecord?id=CVE-2023-3823)  |    |
+| Composer | latest |                                                                   |    |
+| Laravel  |  8.x   | [CVE-2022-40482](https://www.cve.org/CVERecord?id=CVE-2022-40482) |    |
+| Node.js  | 18.x.x |                                                                   |    |
+| npm      | 10.x.x |                                                                   |    |
+| Next.js  | 12.0.8 | [CVE-2022-21721](https://www.cve.org/CVERecord?id=CVE-2022-21721) |    |
 
 # 使用方法
 

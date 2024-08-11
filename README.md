@@ -8,15 +8,15 @@ The environment is constructed using versions that contain vulnerabilities.
 
 ## Components
 
-| Component | Version |                  Vulnerability                  | Note |
-|:----------|:-------:|:-----------------------------------------------:|:-----|
-| nginx     | 1.22.0  | https://www.cve.org/CVERecord?id=CVE-2022-41741 |      |
-| PHP       |  8.2.7  | https://www.cve.org/CVERecord?id=CVE-2023-3823  |      |
-| Composer  | latest  |                                                 |      |
-| Laravel   |   8.x   | https://www.cve.org/CVERecord?id=CVE-2022-40482 |      |
-| Node.js   | 18.x.x  |                                                 |      |
-| npm       | 10.x.x  |                                                 |      |
-| Next.js   | 12.0.8  | https://www.cve.org/CVERecord?id=CVE-2022-21721 |      |
+| Component | Version |                           Vulnerability                           | Note |
+|:----------|:-------:|:-----------------------------------------------------------------:|:-----|
+| nginx    | 1.22.0 | [CVE-2022-41741](https://www.cve.org/CVERecord?id=CVE-2022-41741) |    |
+| PHP      | 8.2.7  |  [CVE-2023-3823](https://www.cve.org/CVERecord?id=CVE-2023-3823)  |    |
+| Composer | latest |                                                                   |    |
+| Laravel  |  8.x   | [CVE-2022-40482](https://www.cve.org/CVERecord?id=CVE-2022-40482) |    |
+| Node.js  | 18.x.x |                                                                   |    |
+| npm      | 10.x.x |                                                                   |    |
+| Next.js  | 12.0.8 | [CVE-2022-21721](https://www.cve.org/CVERecord?id=CVE-2022-21721) |    |
 
 # Usage
 
